@@ -167,8 +167,8 @@ begin
         sysdate  as LXW_DATE,
         sheetnr  as LXW_SHEETNR
     from int_lexware_fk_auftrag
-    where ordernumber = auftragsnr)
-    where ordernumber in (select auftragsnr from int_lexware_fk_auftrag);
+    where ordernumber = szuserdefined5 and rownum<2)
+    where ordernumber in (select szuserdefined5 from int_lexware_fk_auftrag);
 
 end;
 

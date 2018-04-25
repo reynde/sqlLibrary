@@ -155,6 +155,8 @@ begin
     
 end;
 
+select sysdate from dual;
+
 begin
     --
     --
@@ -168,7 +170,7 @@ begin
         sheetnr  as LXW_SHEETNR
     from int_lexware_fk_auftrag
     where ordernumber = szuserdefined5 and rownum<2)
-    where ordernumber in (select szuserdefined5 from int_lexware_fk_auftrag);
+    where ordernumber in (select szuserdefined5 from int_lexware_fk_auftrag where trunc( system_created) > to_date( '01012018', 'DDMMYYYY') );
 
 end;
 

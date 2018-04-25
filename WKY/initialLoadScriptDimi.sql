@@ -199,3 +199,42 @@ begin
     FROM int_lexware_fk_warengruppe;    
     
 end;
+
+begin
+
+  --
+  --
+  --
+  update wky_customers
+       set
+        (lxw_sheetnr,
+        lxw_action,
+        lxw_date,
+        lxw_customer_number) = (
+    select
+        sheetnr  as LXW_SHEETNR,
+        'UPDATE' as lxw_action,
+        sysdate  as lxw_date,
+        kundennr as lxw_customer_number
+    from int_lexware_fk_kunde
+    where lower(anschrift_vorname) = lower(firstname)
+      and lower(anschrift_name) = lower(lastname) and rownum < 2
+    )
+    where lxw_action is null
+      and lower(lastname) in (select lower(anschrift_name) from int_lexware_fk_kunde where anschrift_name is not null)
+      --and rownum < 10
+      ;
+
+end;
+
+select sysdate from dual;
+
+begin
+  cnv_dataconversion_pkg.convert_kunde;
+end;
+
+
+
+
+
+

@@ -235,6 +235,257 @@ end;
 
 
 
+begin
+  --
+  --
+  --
+  insert into wky_depots 
+    ( depot_name
+    , crr_id
+    , spedition
+    , lxw_action
+    , lxw_date
+    , lxw_pk
+    )
+    select name
+         , null
+         , spedition
+         , 'INSERT' as lxw_action
+         , sysdate  as lxw_date
+         , pk       as lxw_pk
+    from int_mysql_lkwplanung_depot
+    ;  
+
+
+end;
+
+
+
+begin
+  --
+  --
+  --
+  insert into wky_depot_postalcodes 
+    ( dpt_id
+    , cty_id
+    , postalcode_start
+    , postalcode_end
+    , lxw_action
+    , lxw_date
+    , lxw_pk
+    )
+    select (select id from wky_depots where lxw_pk = depot_fk) as dpt_id
+         , (select id from wky_countries where iso_code = land) as cty_id
+         , von
+         , bis
+         , 'INSERT' as lxw_action
+         , sysdate  as lxw_date
+         , pk       as lxw_pk
+    from int_mysql_lkwplanung_depot_has_plz
+    ;   
+
+
+end;
+
+
+
+begin
+  --
+  -- Saleschannel 'Fatmoose.ie' was added before this operation.
+  --
+  insert into wky_saleschannel_delivery_time 
+    ( scl_id
+    , shipping_method
+    , cty_id
+    , start_date
+    , end_date
+    , days_min
+    , days_max
+    , lxw_action
+    , lxw_date
+    , lxw_pk
+    )
+    select ( select id from wky_saleschannels where lower( saleschannelname) = 
+                decode( instr( saleschannelname, '.')
+                      , 0, lower( webshop)
+                      , lower( webshop) || '.' || decode( lower( land), 'uk', 'co.uk', lower(land) )
+                      ) 
+           ) as scl_id
+         , versandart
+         , (select id from wky_countries where iso_code = land) as cty_id
+         , startdatum
+         , enddatum
+         , min
+         , max
+         , 'INSERT' as lxw_action
+         , sysdate  as lxw_date
+         , pk       as lxw_pk
+    from int_mysql_lkwplanung_lieferzeiten
+    ;   
+
+
+end;
+
+
+
+begin
+  --
+  -- 
+  --
+  insert into wky_production_location 
+    ( name
+    , status
+    , deleted
+    , lxw_action
+    , lxw_date
+    , lxw_pk
+    )
+    select packstation
+         , status
+         , deleted
+         , 'INSERT' as lxw_action
+         , sysdate  as lxw_date
+         , pk       as lxw_pk
+    from INT_MYSQL_LKWPLANUNG_PACKSTATION
+    ;   
+
+
+end;
+
+
+
+begin
+  --
+  --
+  --
+  insert into wky_complaint_actions_lkp
+    ( lookupcode, language, lookupvalue, active, mapping_code )
+  values
+    ( 'A', 'US', 'Spontanious retour; Contact customer', 'Y', 'unangemeldete Retour; Kunde kontaktieren' );
+  --
+  insert into wky_complaint_actions_lkp
+    ( lookupcode, language, lookupvalue, active, mapping_code )
+  values
+    ( 'B', 'US', 'Return', 'Y', 'retour' );
+  --
+  insert into wky_complaint_actions_lkp
+    ( lookupcode, language, lookupvalue, active, mapping_code )
+  values
+    ( 'C', 'US', 'Refund money', 'Y', 'Geld erstatten' );
+  --
+  insert into wky_complaint_actions_lkp
+    ( lookupcode, language, lookupvalue, active, mapping_code )
+  values
+    ( 'D', 'US', 'Post delivery of complete tower', 'Y', 'Gesamten Spielturm nachliefern' );
+  --
+  insert into wky_complaint_actions_lkp
+    ( lookupcode, language, lookupvalue, active, mapping_code )
+  values
+    ( 'E', 'US', 'Pick up and refund money', 'Y', 'Abholen; Geld erstatten' );
+  --
+  insert into wky_complaint_actions_lkp
+    ( lookupcode, language, lookupvalue, active, mapping_code )
+  values
+    ( 'F', 'US', 'Return and then refund money', 'Y', 'retour; dann Geld erstatten' );
+  --
+  insert into wky_complaint_actions_lkp
+    ( lookupcode, language, lookupvalue, active, mapping_code )
+  values
+    ( 'G', 'US', 'Pick up and post delivery', 'Y', 'Abholen; nachliefern' );
+  --
+  insert into wky_complaint_actions_lkp
+    ( lookupcode, language, lookupvalue, active, mapping_code )
+  values
+    ( 'H', 'US', 'Other', 'Y', 'anders...' );
+  --
+  insert into wky_complaint_actions_lkp
+    ( lookupcode, language, lookupvalue, active, mapping_code )
+  values
+    ( 'I', 'US', 'Return and then post delivery', 'Y', 'retour; dann nachliefern' );
+  --
+  insert into wky_complaint_actions_lkp
+    ( lookupcode, language, lookupvalue, active, mapping_code )
+  values
+    ( 'J', 'US', 'Post delivery', 'Y', 'nachliefern' );
+  --
+  insert into wky_complaint_actions_lkp
+    ( lookupcode, language, lookupvalue, active, mapping_code )
+  values
+    ( 'K', 'US', 'Post delivery and return money', 'Y', 'Nachliefern; Geld erstatten' );
+end;
+
+begin
+  --
+  -- 
+  --
+  insert into wky_packages
+    ( packet_name
+    , tower_name
+    , file_name
+    , number_of_picks
+    , pln_id
+    , lxw_action
+    , lxw_date
+    , lxw_pk
+    )
+    select paket
+         , spielturm
+         , datei
+         , picks
+         , (select id from wky_production_location where lxw_pk = packstation_fk) as pln_id
+         , 'INSERT' as lxw_action
+         , sysdate  as lxw_date
+         , pk       as lxw_pk
+    from INT_MYSQL_LKWPLANUNG_PAKETDATEN
+    ;   
+
+
+end;
+
+
+
+begin
+  --
+  -- 
+  --
+  insert into wky_complaints
+    ( reasonforcomplaint
+    , description
+    , action
+    , ctr_id
+    --, odr_id
+    , status
+    --, cre_id
+    , text
+    , contact_type
+    --, gtt_id
+    , can_id
+    , return_received
+    , return
+    , return_arrived
+    , return_date
+    , receipt_number
+    , date_booked
+    , date_solved
+    , damaged
+    , amount_damaged_for
+    , lxw_action
+    , lxw_date
+    , lxw_id
+    )
+    select widerrufsgrund 
+         , null -- description
+         , aktion -- will be obsolete
+         , () -- ctr_id
+         , null -- odr_id
+         , 'INSERT' as lxw_action
+         , sysdate  as lxw_date
+         , id       as lxw_pk
+    from int_mysql_reklamation
+    ;    
+
+
+end;
 
 
 

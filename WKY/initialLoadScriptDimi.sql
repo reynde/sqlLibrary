@@ -169,9 +169,9 @@ begin
         sysdate  as LXW_DATE,
         sheetnr  as LXW_SHEETNR
     from int_lexware_fk_auftrag
-    where ordernumber = szuserdefined5 and rownum<2)
-    where ordernumber in (select szuserdefined5 from int_lexware_fk_auftrag where trunc( system_created) > to_date( '01012018', 'DDMMYYYY') );
-
+    where ordernumber = szuserdefined5 and system_created >= to_date( '01012016', 'DDMMYYYY') and rownum<2 )
+    where ordernumber in (select szuserdefined5 from int_lexware_fk_auftrag where system_created >= to_date( '01012016', 'DDMMYYYY') );
+  commit;
 end;
 
 begin
@@ -200,6 +200,8 @@ begin
     
 end;
 
+select sysdate from dual;
+
 begin
 
   --
@@ -221,10 +223,10 @@ begin
       and lower(anschrift_name) = lower(lastname) and rownum < 2
     )
     where lxw_action is null
-      and lower(lastname) in (select lower(anschrift_name) from int_lexware_fk_kunde where anschrift_name is not null)
+      and lower(lastname) in (select lower(anschrift_name) from int_lexware_fk_kunde where lower( anschrift_name) is not null)
       --and rownum < 10
       ;
-
+  commit;
 end;
 
 select sysdate from dual;
@@ -473,19 +475,97 @@ begin
     , lxw_date
     , lxw_id
     )
-    select widerrufsgrund 
-         , null -- description
-         , aktion -- will be obsolete
-         , () -- ctr_id
-         , null -- odr_id
-         , 'INSERT' as lxw_action
-         , sysdate  as lxw_date
-         , id       as lxw_pk
-    from int_mysql_reklamation
+select 
+      a.Widerrufsgrund as reasonforcomplaint
+    , null as description
+    , null as action
+    , (select i.id from wky_customers i where i.lxw_sheetnr = c.sheetnr and rownum < 2) as ctr_id
+    --, odr_id
+    , null as status
+    --, cre_id
+    , a.kommentar as text
+    , a.kontaktart as contact_type
+    --, gtt_id
+    , (select i.id from wky_complaint_actions_lkp i where i.mapping_code = a.aktion) as can_id
+    , decode(a.retour_erhalten,'Nein','N','Ja','Y', null) as return_received
+    , a.retour as return1
+    , decode(a.retour_angekommen,'Nein','N','Ja','Y', null) as return_arrived
+    , a.retour_datum as return_date
+    , a.belegnummer as receipt_number
+    , a.ueberwiesen as date_booked
+    , a.erledigt as date_solved
+    , decode(a.schadensrg,'Nein','N','Ja','Y', null) asdamaged
+    ,  a.schadensrg_betrag as amount_damaged_for
+    , 'INSERT' as lxw_action
+    , sysdate  as lxw_date
+    , a.id       as lxw_id    
+from int_mysql_reklamation a, int_mysql_kunde b, int_lexware_fk_kunde c 
+where a.kunde_id = b.id
+and to_char(b.kundennr) = c.kundennr
+and c.system_created between to_date('01-JAN-2018','DD-MON-YYYY') and to_date('31-MAR-2018','DD-MON-YYYY')
     ;    
-
+  commit;
 
 end;
 
 
 
+
+
+begin
+--
+--
+
+INSERT INTO wky_complaintconcerningarticle (
+    ate_id,
+    oce_id,
+    cpt_id,
+    status,
+    lxw_id,
+    lxw_action,
+    lxw_date,
+    quantity,
+    reason_for_complaint
+)
+select 
+    (select i.id from wky_articles i where i.articlenumber = a.artikelnr) as ate_id,
+    null as oce_id,
+    (select i.id from wky_complaints i where i.lxw_id = a.reklamation_id) as cpt_id,
+    null as status,
+    id,
+    'INSERT',
+    sysdate,
+    menge,
+    reklamationsgrund
+FROM int_mysql_reklamation_hauptartikel a
+where a.reklamation_id in (select i.lxw_id  from wky_complaints i)
+;
+commit;
+end;
+
+
+begin
+INSERT INTO wky_complaintconcerningchild (
+    ate_id,
+    cca_id,    
+    status,
+    lxw_id,
+    lxw_action,
+    lxw_date,
+    quantity,
+    reason_for_complaint
+)
+select 
+    (select i.id from wky_articles i where i.articlenumber = a.artikelnr) as ate_id,
+    (select i.id from wky_complaintconcerningarticle i where i.lxw_id = a.reklamation_hauptartikel_id) as cca_id,
+    null as status,
+    id,
+    'INSERT',
+    sysdate,
+    menge,
+    reklamationsgrund
+from int_mysql_reklamation_artikel a
+where a.reklamation_hauptartikel_id in (select i.lxw_id  from wky_complaintconcerningarticle i)
+;
+commit;
+end;

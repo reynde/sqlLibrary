@@ -104,7 +104,7 @@ begin
     WHERE to_number(artikelnr) not in (select articlenumber from wky_articles)
       and REGEXP_SUBSTR(artikelnr,'[0-9]+') = artikelnr;
     
-      
+    commit;  
     --
     -- Update existing records that don't come from Lexware
     -- 2690 rows
@@ -127,6 +127,8 @@ begin
     )
     where lxw_action is null
       and to_char(articlenumber) in (select artikelnr from int_lexware_fk_artikel where bezeichnung is not null);
+      
+    commit;
 end;      
     
 begin
@@ -152,6 +154,8 @@ begin
         null  as LXW_SHEETNR    
     FROM int_lexware_fk_stueckliste
     where artikelnr in (select to_char(articlenumber) from wky_articles);
+    
+    commit;
     
 end;
 
@@ -198,6 +202,7 @@ begin
     null  as LXW_SHEETNR
     FROM int_lexware_fk_warengruppe;    
     
+    commit;
 end;
 
 select sysdate from dual;
@@ -231,9 +236,6 @@ end;
 
 select sysdate from dual;
 
-begin
-  cnv_dataconversion_pkg.convert_kunde;
-end;
 
 
 
@@ -258,7 +260,7 @@ begin
     from int_mysql_lkwplanung_depot
     ;  
 
-
+  commit;
 end;
 
 
@@ -286,7 +288,7 @@ begin
     from int_mysql_lkwplanung_depot_has_plz
     ;   
 
-
+  commit;
 end;
 
 
@@ -325,7 +327,8 @@ begin
     from int_mysql_lkwplanung_lieferzeiten
     ;   
 
-
+  commit;
+  
 end;
 
 
@@ -351,7 +354,7 @@ begin
     from INT_MYSQL_LKWPLANUNG_PACKSTATION
     ;   
 
-
+  commit;
 end;
 
 
@@ -414,6 +417,9 @@ begin
     ( lookupcode, language, lookupvalue, active, mapping_code )
   values
     ( 'K', 'US', 'Post delivery and return money', 'Y', 'Nachliefern; Geld erstatten' );
+  --
+  commit;
+  
 end;
 
 begin
@@ -441,7 +447,8 @@ begin
     from INT_MYSQL_LKWPLANUNG_PAKETDATEN
     ;   
 
-
+  commit;
+  
 end;
 
 

@@ -10,7 +10,6 @@ select count(*), lxw_action from wky_production_location group by lxw_action;
 select count(*), lxw_action from wky_packages group by lxw_action;
 select count(*), lxw_action from wky_complaints group by lxw_action;
 select count(*), lxw_action from wky_complaintconcerningarticle group by lxw_action;
-select count(*), lxw_action from wky_complaintconcerningchild group by lxw_action;
 
 
 

@@ -576,3 +576,102 @@ where a.reklamation_hauptartikel_id in (select i.lxw_id  from wky_complaintconce
 ;
 commit;
 end;
+
+-- 11-05-2018
+
+begin
+  --
+  --
+  insert into wky_carriers
+    ( lxw_pk
+    , lxw_action
+    , lxw_date
+    , carriername
+    , carriercode
+    , broker
+    , servicelevel_time
+    )
+    select pk as lxw_pk
+         , 'INSERT' as lxw_action
+         , sysdate as lxw_date
+         , spedition as carriername
+         , code as carriercode
+         , broker as broker
+         , serviceleveltime as servicelevel_time
+      from int_mysql_lkwplanung_spedition
+      ;
+  commit;
+  -- Missing Carriers
+  insert into wky_carriers ( carriername, carriercode)
+                    values ( 'Möller', '???');
+  insert into wky_carriers ( carriername, carriercode)
+                    values ( 'Post', '???');
+  insert into wky_carriers ( carriername, carriercode)
+                    values ( 'DHL', '???');
+  insert into wky_carriers ( carriername, carriercode)
+                    values ( 'DSV', '???');
+  insert into wky_carriers ( carriername, carriercode)
+                    values ( 'freie Spedition', '???');
+  commit;
+end;
+
+begin
+  --
+  --
+  insert into wky_cargoplace
+    ( lxw_pk
+    , lxw_action
+    , lxw_date
+    , week
+    , day
+    , date_created
+    , collection_date
+    , collection_time
+    , crr_id
+    , price
+    , picks
+    , picks_pfp
+    , picks_pal
+    )
+    select pk as lxw_pk
+         , 'INSERT' as lxw_action
+         , sysdate as lxw_date
+         , wochennr as week
+         , tagesnr as day
+         , erstelldatum as date_created
+         , abholdatum as collection_date
+         , abholzeit as collection_time
+         , ( select id from wky_carriers where carriername = spedition) as crr_id
+         , preis as price
+         , picks as picks
+         , pickspfp as picks_pfp
+         , pickspal as picks_pal
+      from int_mysql_lkwplanung_lkw
+      ;
+    
+  commit;
+  
+end;
+
+begin
+  --
+  --
+  insert into wky_mail_htmlemails
+    ( lxw_pk
+    , lxw_action
+    , lxw_date
+    , cty_id
+    , subject
+    , text
+    )
+    select pk as lxw_pk
+         , 'INSERT' as lxw_action
+         , sysdate as lxw_date
+         , ( select id from wky_countries where decode(land, 'UK', 'GB', land) = iso_code) as cty_id
+         , nvl( betreff, 'No subject') as subject
+         , text as text
+      from int_mysql_mail_htmlemails
+      ;
+  commit;
+  
+end;

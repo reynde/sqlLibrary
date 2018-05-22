@@ -512,6 +512,11 @@ begin
   
 end;
 
+
+/*
+
+  IMPORTANT! This part needs to be remapped. This information should be added to WKY_ARTICLES. 
+  Details are still to be defined. (RVE 18-05-2018)
 begin
   --
   -- 
@@ -556,7 +561,7 @@ begin
   
 end;
 
-
+*/
 
 begin
   --
@@ -926,6 +931,163 @@ begin
   
 end;
 
+select sysdate from dual;
+
+begin
+  --
+  -- The source table contains 4 sets of price/spedition. This will be mapped to 4 lines in the Oracle table
+  --
+  for r in (
+             select *
+               from int_mysql_lkwplanung_speditionskosten
+               
+           )
+  loop
+    if r.preis_1 is not null
+    then
+      insert into wky_country_carrier_costs
+        ( start_date
+        , end_date
+        , ate_id
+        , cty_id
+        , crr_id
+        , price
+        , lxw_pk
+        , lxw_action
+        , lxw_date
+        )
+        select to_date( '01012016', 'DDMMYYYY') as start_date
+             , null as end_date
+             , (select id from wky_articles where articlenumber = artikelnummer_k) as ate_id
+             , ( select id from wky_countries where decode(land, 'UK', 'GB', land) = iso_code) as cty_id
+             , ( select id from wky_carriers where carriername = spedition_1) as crr_id
+             , preis_1 as price
+             , pk as lxw_pk
+             , 'INSERT' as lxw_action
+             , sysdate as lxw_date
+          from int_mysql_lkwplanung_speditionskosten
+         where pk = r.pk
+           and not exists (select lxw_pk from wky_country_carrier_costs where lxw_pk = pk)
+           ;
+    end if;
+    if r.preis_2 is not null
+    then
+      insert into wky_country_carrier_costs
+        ( start_date
+        , end_date
+        , ate_id
+        , cty_id
+        , crr_id
+        , price
+        , lxw_pk
+        , lxw_action
+        , lxw_date
+        )
+        select to_date( '01012016', 'DDMMYYYY') as start_date
+             , null as end_date
+             , (select id from wky_articles where articlenumber = artikelnummer_k) as ate_id
+             , ( select id from wky_countries where decode(land, 'UK', 'GB', land) = iso_code) as cty_id
+             , ( select id from wky_carriers where carriername = spedition_2) as crr_id
+             , preis_2 as price
+             , pk as lxw_pk
+             , 'INSERT' as lxw_action
+             , sysdate as lxw_date
+          from int_mysql_lkwplanung_speditionskosten
+         where pk = r.pk
+           and not exists (select lxw_pk from wky_country_carrier_costs where lxw_pk = pk)
+           ;
+    end if;
+    if r.preis_3 is not null
+    then
+      insert into wky_country_carrier_costs
+        ( start_date
+        , end_date
+        , ate_id
+        , cty_id
+        , crr_id
+        , price
+        , lxw_pk
+        , lxw_action
+        , lxw_date
+        )
+        select to_date( '01012016', 'DDMMYYYY') as start_date
+             , null as end_date
+             , (select id from wky_articles where articlenumber = artikelnummer_k) as ate_id
+             , ( select id from wky_countries where decode(land, 'UK', 'GB', land) = iso_code) as cty_id
+             , ( select id from wky_carriers where carriername = spedition_3) as crr_id
+             , preis_3 as price
+             , pk as lxw_pk
+             , 'INSERT' as lxw_action
+             , sysdate as lxw_date
+          from int_mysql_lkwplanung_speditionskosten
+         where pk = r.pk
+           and not exists (select lxw_pk from wky_country_carrier_costs where lxw_pk = pk)
+           ;
+    end if;
+    if r.preis_4 is not null
+    then
+      insert into wky_country_carrier_costs
+        ( start_date
+        , end_date
+        , ate_id
+        , cty_id
+        , crr_id
+        , price
+        , lxw_pk
+        , lxw_action
+        , lxw_date
+        )
+        select to_date( '01012016', 'DDMMYYYY') as start_date
+             , null as end_date
+             , (select id from wky_articles where articlenumber = artikelnummer_k) as ate_id
+             , ( select id from wky_countries where decode(land, 'UK', 'GB', land) = iso_code) as cty_id
+             , ( select id from wky_carriers where carriername = spedition_4) as crr_id
+             , preis_4 as price
+             , pk as lxw_pk
+             , 'INSERT' as lxw_action
+             , sysdate as lxw_date
+          from int_mysql_lkwplanung_speditionskosten
+         where pk = r.pk
+           and not exists (select lxw_pk from wky_country_carrier_costs where lxw_pk = pk)
+           ;
+    end if;
+  end loop;
+  
+  commit;
+end;
+
+begin
+  --
+  --
+  --
+  insert into wky_zipcode_carrier_costs
+        ( start_date
+        , end_date
+        , ate_id
+        , cty_id
+        , crr_id
+        , price
+        , lxw_pk
+        , lxw_action
+        , lxw_date
+        )
+        select to_date( '01012016', 'DDMMYYYY') as start_date
+             , null as end_date
+             , ( select id from wky_articles where articlenumber = artikelnummer_k) as ate_id
+             , ( select id from wky_countries where decode(land, 'UK', 'GB', land) = iso_code) as cty_id
+             , ( select id from wky_carriers where carriername = spedition) as crr_id
+             , preis as price
+             , pk as lxw_pk
+             , 'INSERT' as lxw_action
+             , sysdate as lxw_date
+          from int_mysql_lkwplanung_speditionskosten
+         where pk = r.pk
+           and not exists (select lxw_pk from wky_zipcode_carrier_costs where lxw_pk = pk)
+           ;
+  commit;
+end;
+
+
 
 --
 -- Validations
@@ -945,3 +1107,5 @@ select count(*), lxw_action from wky_complaintconcerningarticle group by lxw_act
 select count(*), lxw_action from wky_carriers group by lxw_action;
 select count(*), lxw_action from wky_cargoplace group by lxw_action;
 select count(*), lxw_action from wky_mail_htmlemails group by lxw_action;
+select count(*), lxw_action from wky_country_carrier_costs group by lxw_action;
+select count(*), lxw_action from wky_zipcode_carrier_costs group by lxw_action;

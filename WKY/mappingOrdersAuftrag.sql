@@ -41,4 +41,4 @@ Bestellnr = szuserdefined5 (wky_orders) (for afterbuy)
 
 
 select *
-  from wky_return_actions_lkp;
+  from wky_return_reasons_lkp;

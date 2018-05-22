@@ -30,6 +30,7 @@ select * -- 273494374
 /*
 
 Auftragsnr = invoice number (wky_account)
+
 Bestellnr = ordernumber (wky_orders) (for not afterbuy) (via int-afterbuy-orders table)
 Bestellnr = szuserdefined5 (wky_orders) (for afterbuy)
 

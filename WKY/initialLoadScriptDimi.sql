@@ -191,7 +191,9 @@ select sysdate from dual;
 
 begin
     --
-    --
+    -- WKY_ORDERS: ordernumber = bestellnr in case it comes from NOT Aftrebuy interface
+    --             szuserdefined5 = bestellnr in case it comes from Afterbuy interface
+    --  Source can be found in WKY_ORDERS.restsource (= or != 'Afterbuy')
     --
     update wky_orders
     set (oss_id, LXW_ACTION, LXW_DATE, LXW_SHEETNR, lxw_auftragsnr) = 
@@ -205,6 +207,21 @@ begin
           where ordernumber = szuserdefined5 and system_created >= to_date( '01012016', 'DDMMYYYY') and rownum<2 )
     where ordernumber in (select szuserdefined5 from int_lexware_fk_auftrag where system_created >= to_date( '01012016', 'DDMMYYYY') );
   commit;
+end;
+
+select sysdate from dual;
+
+begin
+  --
+  -- WKY_ACCOUNTS filled from lkw_planung_auftrag
+  --  All orders from int_mysql_lkwplanung_auftrag, that also exist in WKY_ORDERS (WKY_ORDERS.lxw_auftragsnr) ook INSERT or UPDATE
+  --  in WKY_ACCOUNTS: auftragsnr = WKY_ACCOUNTS.invoice_number
+  --                   odr_id = WKY_ORDERS.id
+  --                   cpt_id = WKY_COMPLAINTS.id
+  --                   scl_id = WKY_SALESCHANNELS.id (also on WKY_ORDERS)
+  --                   CRY_id = WKY_CURRENCIES.id (also on WKY_ORDERS)
+  commit;
+  
 end;
 
 begin
@@ -1080,14 +1097,111 @@ begin
              , pk as lxw_pk
              , 'INSERT' as lxw_action
              , sysdate as lxw_date
-          from int_mysql_lkwplanung_speditionskosten
-         where pk = r.pk
-           and not exists (select lxw_pk from wky_zipcode_carrier_costs where lxw_pk = pk)
+          from int_mysql_lkwplanung_speditionskosten_plz
+         where not exists (select lxw_pk from wky_zipcode_carrier_costs where lxw_pk = pk)
            ;
   commit;
 end;
 
+select sysdate from dual;
+--delete wky_packages;
 
+begin
+  --
+  -- WKY_PACKAGES Insert
+  --
+  insert into wky_packages
+    ( lxw_pk
+    , lxw_action
+    , lxw_date
+    , packet_name
+    , tower_name
+    , odr_id
+    , colli_nr
+    , length
+    , width
+    , height
+    , volume
+    , weight
+    , pte_id
+    , status    
+    , label
+    , airway_bill_number
+    , scanned
+    , pln_id
+    )
+    select pk
+         , 'INSERT'
+         , sysdate
+         , auftragsnr || ' - ' || colli_nr as packet_name
+         , null as tower_name
+         , (select id from wky_orders where ordernumber = auftragsnr) as odr_id
+         , colli_nr
+         , laenge
+         , breite
+         , hoehe
+         , volumen
+         , gewicht
+         , (select id from wky_packagetypes_lkp where lookupvalue = type) as pte_id
+         , status
+         , label
+         , airwaybillnumber
+         , scanned
+         , (select id from wky_production_location where lxw_pk = colli_nr) as pln_id
+      from int_mysql_lkwplanung_versanddaten
+     where not exists (select lxw_pk from wky_packages where lxw_pk = pk);
+  commit;
+end;
+
+select sysdate from dual;
+--delete wky_packages;
+
+begin
+  --
+  -- WKY_PACKAGES Update
+  --
+  update wky_packages
+     set  ( lxw_action
+          , lxw_date
+          , packet_name
+          , odr_id
+          , colli_nr
+          , length
+          , width
+          , height
+          , volume
+          , weight
+          , pte_id
+          , status    
+          , label
+          , airway_bill_number
+          , scanned
+          , pln_id
+          ) =
+            ( select 'UPDATE' as lxw_action
+                   , sysdate as lxw_date
+                   , auftragsnr || ' - ' || colli_nr
+                   , (select id from wky_orders where ordernumber = auftragsnr) as odr_id
+                   , colli_nr
+                   , laenge
+                   , breite
+                   , hoehe
+                   , volumen
+                   , gewicht
+                   , (select id from wky_packagetypes_lkp where lookupvalue = type) as pte_id
+                   , status
+                   , label
+                   , airwaybillnumber
+                   , scanned
+                   , (select id from wky_production_location where lxw_pk = colli_nr) as pln_id
+                from int_mysql_lkwplanung_versanddaten
+               where pk = lxw_pk
+            );
+            
+            
+
+  commit;
+end;
 
 --
 -- Validations

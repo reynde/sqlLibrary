@@ -34,6 +34,8 @@ SELECT
 FROM int_lexware_fk_artikel o
 WHERE REGEXP_SUBSTR(artikelnr,'[0-9]+') <> artikelnr;  
 
+select sysdate from dual;
+select * from wky_articles;
 
 begin
     --
@@ -108,6 +110,15 @@ begin
 end;
 
 begin
+  -- Updating the VC2 column, so we can use it in the update statement
+  --
+  update wky_articles set articlenumber_vc2 = to_char(articlenumber);
+  commit;
+end;
+
+create unique index articlenumber_vc2_idx  on  wky_articles (articlenumber_vc2);
+
+begin
     --
     -- Update existing records 
     --
@@ -124,15 +135,17 @@ begin
         'UPDATE' as LXW_ACTION,
         sysdate  as LXW_DATE,
         sheetnr  as LXW_SHEETNR
-    FROM int_lexware_fk_artikel 
-    WHERE artikelnr = to_char(articlenumber)
+    from int_lexware_fk_artikel 
+    WHERE artikelnr = articlenumber_vc2 -- to_char(articlenumber)
     )
     where 1=1
       -- and lxw_action is null
-      and to_char(articlenumber) in (select artikelnr from int_lexware_fk_artikel where bezeichnung is not null);
+      and articlenumber_vc2 in (select artikelnr from int_lexware_fk_artikel where bezeichnung is not null); --to_char(articlenumber)
       
     commit;
 end;      
+    
+select sysdate from dual;    
     
 begin
     --
@@ -147,17 +160,18 @@ begin
         lxw_date,
         lxw_sheetnr
     )
-    SELECT
-        (select id from wky_articles where to_char(articlenumber) = artikelnr) as ate_id,
-        (select id from wky_articles where to_char(articlenumber) = unterartikelnr) as part_id,
+    select
+        (select id from wky_articles where articlenumber_vc2 = artikelnr) as ate_id, -- to_char(articlenumber)
+        (select id from wky_articles where articlenumber_vc2 = unterartikelnr) as part_id, -- to_char(articlenumber)
         menge,
         lfnr,
         'INSERT' as LXW_ACTION,
         sysdate  as LXW_DATE,
         null  as LXW_SHEETNR    
-    FROM int_lexware_fk_stueckliste
-    where artikelnr in (select to_char(articlenumber) from wky_articles)
-      and artikelnr||lfnr not in (select to_char(a.articlenumber)||b.sorting_sequence from wky_articles a, wky_bill_of_materials b
+    from int_lexware_fk_stueckliste
+         inner join wky_articles on int_lexware_fk_stueckliste.artikelnr = wky_articles.articlenumber_vc2  
+    --where artikelnr in (select articlenumber_vc2 from wky_articles) -- to_char(articlenumber)
+    where artikelnr||lfnr not in (select a.articlenumber_vc2||b.sorting_sequence from wky_articles a, wky_bill_of_materials b -- to_char( a.articlenumber)
                                   where a.id = b.ate_id
                                  );
     
@@ -189,24 +203,44 @@ end;
 
 select sysdate from dual;
 
+declare
+  l_cnt number := 0;
+  
 begin
-    --
-    -- WKY_ORDERS: ordernumber = bestellnr in case it comes from NOT Aftrebuy interface
-    --             szuserdefined5 = bestellnr in case it comes from Afterbuy interface
-    --  Source can be found in WKY_ORDERS.restsource (= or != 'Afterbuy')
-    --
-    update wky_orders
-    set (oss_id, LXW_ACTION, LXW_DATE, LXW_SHEETNR, lxw_auftragsnr) = 
-          (SELECT
-               case when auftragskennung = 3 then (select id from wky_orderstatuses_lkp where lookupcode = 'PAYED') else oss_id end as oss_id,
-              'UPDATE' as LXW_ACTION,
-              sysdate  as LXW_DATE,
-              sheetnr  as lxw_sheetnr,
-              auftragsnr as lxw_auftragsnr
-          from int_lexware_fk_auftrag
-          where ordernumber = szuserdefined5 and system_created >= to_date( '01012016', 'DDMMYYYY') and rownum<2 )
-    where ordernumber in (select szuserdefined5 from int_lexware_fk_auftrag where system_created >= to_date( '01012016', 'DDMMYYYY') );
+  for r in (
+                select case when l.auftragskennung = 3 then (select id from wky_orderstatuses_lkp where lookupcode = 'PAYED') else null end as oss_id
+                     , 'UPDATE' as lxw_action
+                     , sysdate  as lxw_date
+                     , l.sheetnr  as lxw_sheetnr
+                     , l.auftragsnr as lxw_auftragsnr
+                     , l.bestellnr as lxw_bestellnr
+                     , l.szuserdefined5 as lxw_szuserdefined5
+                  from int_lexware_fk_auftrag l
+                 where l.datum_erfassung >= to_date( '01012016', 'DDMMYYYY')
+                   --and l.sheetnr = 2178642
+           )
+  loop
+    l_cnt := l_cnt + 1;
+    update wky_orders o
+       set o.oss_id = nvl( r.oss_id, oss_id)
+         , o.lxw_action = r.lxw_action
+         , o.lxw_date = r.lxw_date
+         , o.lxw_sheetnr = r.lxw_sheetnr
+         , o.lxw_auftragsnr = r.lxw_auftragsnr
+         , o.lxw_bestellnr = r.lxw_bestellnr
+     where ( o.ordernumber = r.lxw_bestellnr or
+             o.ordernumber = r.lxw_szuserdefined5
+           );
+     
+    if l_cnt >= 500
+    then
+      l_cnt := 0;
+      commit;
+    end if;
+  end loop;
+  
   commit;
+  
 end;
 
 select sysdate from dual;
@@ -223,6 +257,8 @@ begin
   commit;
   
 end;
+
+select sysdate from dual;
 
 begin
     
@@ -309,6 +345,10 @@ begin
 
   commit;
   
+end;
+
+begin
+  
   update wky_depots
      set ( depot_name, spedition, lxw_action, lxw_date) =
             (
@@ -321,7 +361,7 @@ begin
   
 end;
 
-
+select sysdate from dual;
 
 begin
   --
@@ -348,6 +388,10 @@ begin
     ;   
 
   commit;
+  
+end;
+
+begin
   
   update wky_depot_postalcodes
      set ( dpt_id, cty_id, postalcode_start, postalcode_end, lxw_action, lxw_date) =
@@ -402,6 +446,10 @@ begin
 
   commit;
   
+end;
+
+begin
+  
   update wky_saleschannel_delivery_time
      set ( scl_id, shipping_method, cty_id, start_date, end_date, days_min, days_max, lxw_action, lxw_date) =
            ( select ( select id from wky_saleschannels where lower( saleschannelname) = 
@@ -425,7 +473,7 @@ begin
   
 end;
 
-
+select sysdate from dual;
 
 begin
   --
@@ -450,6 +498,10 @@ begin
     ;   
 
   commit;
+  
+end;
+
+begin
   
   update wky_production_location
      set (name, status, deleted, lxw_action, lxw_date) =
@@ -580,124 +632,110 @@ end;
 
 */
 
+select sysdate from dual;
+
+declare
+  l_cnt number := 0;
+
 begin
-  --
-  -- 
-  --
-  insert into wky_complaints
-    ( reasonforcomplaint
-    , description
-    , action
-    , ctr_id
-    --, odr_id
-    , status
-    --, cre_id
-    , text
-    , contact_type
-    --, gtt_id
-    , can_id
-    , return_received
-    , return
-    , return_arrived
-    , return_date
-    , receipt_number
-    , date_booked
-    , date_solved
-    , damaged
-    , amount_damaged_for
-    , lxw_action
-    , lxw_date
-    , lxw_id
-    )
-select 
-      a.Widerrufsgrund as reasonforcomplaint
-    , null as description
-    , null as action
-    , (select i.id from wky_customers i where i.lxw_sheetnr = c.sheetnr and rownum < 2) as ctr_id
-    --, odr_id
-    , null as status
-    --, cre_id
-    , a.kommentar as text
-    , a.kontaktart as contact_type
-    --, gtt_id
-    , (select i.id from wky_complaint_actions_lkp i where i.mapping_code = a.aktion) as can_id
-    , decode(a.retour_erhalten,'Nein','N','Ja','Y', null) as return_received
-    , a.retour as return1
-    , decode(a.retour_angekommen,'Nein','N','Ja','Y', null) as return_arrived
-    , a.retour_datum as return_date
-    , a.belegnummer as receipt_number
-    , a.ueberwiesen as date_booked
-    , a.erledigt as date_solved
-    , decode(a.schadensrg,'Nein','N','Ja','Y', null) asdamaged
-    ,  a.schadensrg_betrag as amount_damaged_for
-    , 'INSERT' as lxw_action
-    , sysdate  as lxw_date
-    , a.id       as lxw_id    
-from int_mysql_reklamation a, int_mysql_kunde b, int_lexware_fk_kunde c 
-where a.kunde_id = b.id
-and to_char(b.kundennr) = c.kundennr
-and c.system_created between to_date('01-JAN-2018','DD-MON-YYYY') and to_date('31-MAR-2018','DD-MON-YYYY')
-and not exists (select lxw_id from wky_complaints where lxw_id = a.id)
-    ;    
+
+  for r in (
+            select 
+                  a.Widerrufsgrund as reasonforcomplaint
+                , null as description
+                , null as action
+                , (select i.id from wky_customers i where i.lxw_sheetnr = c.sheetnr and rownum < 2) as ctr_id
+                --, odr_id
+                , null as status
+                --, cre_id
+                , a.kommentar as text
+                , a.kontaktart as contact_type
+                --, gtt_id
+                , (select i.id from wky_complaint_actions_lkp i where i.mapping_code = a.aktion) as can_id
+                , decode(a.retour_erhalten,'Nein','N','Ja','Y', null) as return_received
+                , a.retour as return1
+                , decode(a.retour_angekommen,'Nein','N','Ja','Y', null) as return_arrived
+                , a.retour_datum as return_date
+                , a.belegnummer as receipt_number
+                , a.ueberwiesen as date_booked
+                , a.erledigt as date_solved
+                , decode(a.schadensrg,'Nein','N','Ja','Y', null) as damaged
+                ,  a.schadensrg_betrag as amount_damaged_for
+                , 'INSERT' as lxw_action
+                , sysdate  as lxw_date
+                , a.id       as lxw_id    
+            from int_mysql_reklamation a, int_mysql_kunde b, int_lexware_fk_kunde c 
+            where a.kunde_id = b.id
+            and b.kundennr_vc = c.kundennr -- to_char(b.kundennr)
+            and c.system_created between to_date( '01012018','DDMMYYYY') and to_date( '31052018','DDMMYYYY')
+            and not exists (select lxw_id from wky_complaints where lxw_id = a.id)
+            --and a.id = 36434
+           )
+  loop
+    l_cnt := l_cnt + 1;
+    
+    insert into wky_complaints 
+        ( reasonforcomplaint
+        , description
+        , action
+        , ctr_id
+        --, odr_id
+        , status
+        --, cre_id
+        , text
+        , contact_type
+        --, gtt_id
+        , can_id
+        , return_received
+        , return
+        , return_arrived
+        , return_date
+        , receipt_number
+        , date_booked
+        , date_solved
+        , damaged
+        , amount_damaged_for
+        , lxw_action
+        , lxw_date
+        , lxw_id
+        )
+    values
+        ( r.reasonforcomplaint
+        , r.description
+        , r.action
+        , r.ctr_id
+        , r.status
+        , r.text
+        , r.contact_type
+        , r.can_id
+        , r.return_received
+        , r.return1
+        , r.return_arrived
+        , r.return_date
+        , r.receipt_number
+        , r.date_booked
+        , r.date_solved
+        , r.damaged
+        , r.amount_damaged_for
+        , r.lxw_action
+        , r.lxw_date
+        , r.lxw_id
+        );
+    
+    if l_cnt >= 500
+    then
+      l_cnt := 0;
+      commit;
+    end if;
+    
+  end loop;
+
   commit;
-  
---  update wky_complaints
---     set (  reasonforcomplaint
---          , description
---          , action
---          , ctr_id
---          --, odr_id
---          , status
---          --, cre_id
---          , text
---          , contact_type
---          --, gtt_id
---          , can_id
---          , return_received
---          , return
---          , return_arrived
---          , return_date
---          , receipt_number
---          , date_booked
---          , date_solved
---          , damaged
---          , amount_damaged_for
---          , lxw_action
---          , lxw_date
---         ) = ( select a.Widerrufsgrund as reasonforcomplaint
---                    , null as description
---                    , null as action
---                    , (select i.id from wky_customers i where i.lxw_sheetnr = c.sheetnr and rownum < 2) as ctr_id
---                    --, odr_id
---                    , null as status
---                    --, cre_id
---                    , a.kommentar as text
---                    , a.kontaktart as contact_type
---                    --, gtt_id
---                    , (select i.id from wky_complaint_actions_lkp i where i.mapping_code = a.aktion) as can_id
---                    , decode(a.retour_erhalten,'Nein','N','Ja','Y', null) as return_received
---                    , a.retour as return1
---                    , decode(a.retour_angekommen,'Nein','N','Ja','Y', null) as return_arrived
---                    , a.retour_datum as return_date
---                    , a.belegnummer as receipt_number
---                    , a.ueberwiesen as date_booked
---                    , a.erledigt as date_solved
---                    , decode(a.schadensrg,'Nein','N','Ja','Y', null) asdamaged
---                    ,  a.schadensrg_betrag as amount_damaged_for
---                    , 'UPDATE' as lxw_action
---                    , sysdate  as lxw_date  
---                from int_mysql_reklamation a, int_mysql_kunde b, int_lexware_fk_kunde c 
---                where a.kunde_id = b.id
---                and to_char(b.kundennr) = c.kundennr
---                and c.system_created between to_date('01-JAN-2018','DD-MON-YYYY') and to_date('31-MAR-2018','DD-MON-YYYY')
---                and a.id = lxw_id
---             );
---  commit;
 
 end;
 
 
-
+select sysdate from dual;
 
 
 begin
@@ -730,6 +768,12 @@ begin
     and not exists (select lxw_id from wky_complaintconcerningarticle where lxw_id = a.id)
   ;
   commit;
+  
+end;
+
+select sysdate from dual;
+
+begin
   
   update wky_complaintconcerningarticle
      set (ate_id, oce_id,cpt_id,status,quantity,reason_for_complaint, lxw_action,lxw_date) =
@@ -781,6 +825,7 @@ begin
 end;
 
 -- 11-05-2018
+select sysdate from dual;
 
 begin
   --
@@ -805,6 +850,10 @@ begin
      where not exists (select lxw_pk from wky_carriers where lxw_pk = pk)
       ;
   commit;
+  
+end;
+
+begin
   -- Missing Carriers
   insert into wky_carriers ( carriername, carriercode)
                     values ( 'Möller', '???');
@@ -817,6 +866,10 @@ begin
   insert into wky_carriers ( carriername, carriercode)
                     values ( 'freie Spedition', '???');
   commit;
+  
+end;
+
+begin
   
   update wky_carriers
      set  ( lxw_action
@@ -849,7 +902,7 @@ begin
     , day
     , date_created
     , collection_date
-    , collection_time
+    --, collection_time
     , crr_id
     , price
     , picks
@@ -863,7 +916,7 @@ begin
          , tagesnr as day
          , erstelldatum as date_created
          , abholdatum as collection_date
-         , abholzeit as collection_time
+         --, abholzeit as collection_time
          , ( select id from wky_carriers where carriername = spedition) as crr_id
          , preis as price
          , picks as picks
@@ -875,6 +928,10 @@ begin
     
   commit;
   
+end;
+
+begin
+  
   update wky_cargoplace
      set  ( lxw_action
           , lxw_date
@@ -882,7 +939,7 @@ begin
           , day
           , date_created
           , collection_date
-          , collection_time
+         -- , collection_time
           , crr_id
           , price
           , picks
@@ -894,7 +951,7 @@ begin
                      , tagesnr as day
                      , erstelldatum as date_created
                      , abholdatum as collection_date
-                     , abholzeit as collection_time
+                    -- , abholzeit as collection_time
                      , ( select id from wky_carriers where carriername = spedition) as crr_id
                      , preis as price
                      , picks as picks
@@ -906,6 +963,8 @@ begin
   commit;
   
 end;
+
+select sysdate from dual;
 
 begin
   --
@@ -929,6 +988,10 @@ begin
       ;
   commit;
   
+end;
+
+begin
+  
   update wky_mail_htmlemails
      set  ( lxw_action
           , lxw_date
@@ -949,6 +1012,71 @@ begin
 end;
 
 select sysdate from dual;
+
+begin
+    -- Versand_vorbereited DEV
+    update wky_mail_htmlemails
+          set mss_id = 143469652096358405486792216683230184889
+     where id IN (143469652096456328478181001646381385145, --for Austria
+                  143469652096463582033098689421429622201, --for Belgium
+                  143469652096443030294165240725459617209, --for Switzerland
+                  143469652096441821368345626096284911033, --for Germany
+                  143469652096462373107279074792254916025, --for Spain
+                  143469652096458746329820230904730797497, --for France
+                  143469652096459955255639845533905503673, --for Italy
+                  143469652096461164181459460163080209849, --for Netherlands
+                  143469652096422478555231792029489612217, --for Poland
+                  143469652096457537404000616275556091321  --for United Kingdom
+                  );
+    -- Missing phone DEV              
+    update wky_mail_htmlemails
+       set mss_id = 143469652096360823338431445941579597241
+     where id IN (143469652096479298068753679600700802489, --for Austria
+                  143469652096418851777772948141965493689, --for Belgium
+                  143469652096478089142934064971526096313, --for Switzerland
+                  143469652096476880217114450342351390137, --for Germany
+                  143469652096445448145804469983809029561, --for Spain
+                  143469652096420060703592562771140199865, --for France
+                  143469652096421269629412177400314906041, --for Italy
+                  143469652096480506994573294229875508665, --for Netherlands
+                  143469652096453910626541772388031972793, --for Poland
+                  143469652096446657071624084612983735737  --for United Kingdom
+                  );       
+    commit;
+end;
+
+begin
+    -- Versand_vorbereited TST
+    update wky_mail_htmlemails
+          set mss_id = 143469652096358405486792216683230184889
+     where id IN (144722774007190085148783640574574631802, --for Austria
+                  144722774007197338703701328349622868858, --for Belgium
+                  144722774007176786964767879653652863866, --for Switzerland
+                  144722774007175578038948265024478157690, --for Germany
+                  144722774007196129777881713720448162682, --for Spain
+                  144722774007192503000422869832924044154, --for France
+                  144722774007193711926242484462098750330, --for Italy
+                  144722774007194920852062099091273456506, --for The Netherlands
+                  144722774007156235225834430957682858874, --for Poland
+                  144722774007191294074603255203749337978  --for United-Kingdom
+                  );
+    -- Missing phone TST              
+    update wky_mail_htmlemails
+       set mss_id = 143469652096360823338431445941579597241
+     where id IN (144722774007213054739356318528894049146, --for Austria
+                  144722774007152608448375587070158740346, --for Belgium
+                  144722774007211845813536703899719342970, --for Switzerland
+                  144722774007210636887717089270544636794, --for Germany
+                  144722774007179204816407108912002276218, --for Spain
+                  144722774007153817374195201699333446522, --for France
+                  144722774007155026300014816328508152698, --for Italy
+                  144722774007214263665175933158068755322, --for Netherlands
+                  144722774007187667297144411316225219450, --for Poland
+                  144722774007180413742226723541176982394  --for United Kingdom
+                  );  
+  commit;
+
+end;
 
 begin
   --

@@ -4,7 +4,7 @@ select ute.table_name
      , user_tab_comments utt
  where ute.table_name = utt.table_name
    and ute.table_name like 'WKY_%'
-   and nvl( substr( utt.comments, 1, 3), 'ZZZ') in ('DPT')
+   and nvl( substr( utt.comments, 1, 3), 'ZZZ') in ('PMD', 'PMT')
 --order by 1
 order by 2 desc
 ;
@@ -52,3 +52,7 @@ select count(*)
 group by nvl( substr( utt.comments, 1, 3), 'ZZZ')
 having count(*) > 1
 ;
+
+select *
+  from wky_paymentmethods_lkp
+  ;

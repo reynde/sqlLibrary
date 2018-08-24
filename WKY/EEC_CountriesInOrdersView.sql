@@ -12,11 +12,9 @@
      , ( select countryname from wky_countries
          where id = ctr.delcty_id and nvl( language, 'US') = 'US'
        ) as deliverycountry
-     , case when (select eec_flag from wky_current_eec_countries_v
-             where id = ctr.delcty_id ) = 'Y'
-        then 'Y'
-        else 'N'
-       end as eec_flag
+     , ( select current_eec_flag from wky_countries_v
+         where cty_id = ctr.delcty_id
+       )as eec_flag
      , ctr.lge_id
      , ( select lookupvalue from wky_languages_lkp
          where id = ctr.lge_id and nvl( language, 'US') = 'US'
@@ -42,3 +40,16 @@
 
 select * from wky_current_eec_countries_v
              where id =128551001677863016609805769029395831652;
+             
+create or replace force view wky_countries_v
+as
+select cty.id as cty_id, cty.countryname, cty.iso_code, cty.language
+     , ecy.id as ecy_id, ecy.start_date as eec_start_date, ecy.end_date as eec_end_date, nvl( ecy.eec_flag, 'Y') as current_eec_flag
+  from wky_countries cty
+     , wky_eec_countries ecy
+ where cty.id = ecy.cty_id (+)
+   and sysdate between nvl( ecy.start_date, sysdate) and nvl( ecy.end_date, sysdate)
+ ;
+ 
+select *
+  from wky_countries_v;

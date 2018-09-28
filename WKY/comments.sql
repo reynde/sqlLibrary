@@ -4,7 +4,7 @@ select ute.table_name
      , user_tab_comments utt
  where ute.table_name = utt.table_name
    and ute.table_name like 'WKY_%'
-   and nvl( substr( utt.comments, 1, 3), 'ZZZ') in ('IPE', 'PMTx')
+   and nvl( substr( utt.comments, 1, 3), 'ZZZ') in ('MLS')
 --order by 1
 order by 2 desc
 ;
@@ -56,3 +56,6 @@ having count(*) > 1
 select *
   from wky_paymentmethods_lkp
   ;
+  
+select * from wky_languages_lkp
+;

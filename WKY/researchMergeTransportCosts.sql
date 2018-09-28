@@ -146,3 +146,114 @@ merge into wky_zipcode_carrier_costs zct
                       and coll.c003 = cty.iso_code 
                       and upper( coll.c007) = upper( crr.carriername)
                       ;
+                      
+                      
+select sysdate from dual;
+
+select count(*) from rve_zipcode_carrier_costs; -- 
+select count(*) from wky_zipcode_carrier_costs; -- 88343
+
+select merge_action, to_char( zct.created, 'DD-MM-YYYY HH24:MI') as created, to_char( zct.updated, 'DD-MM-YYYY HH24:MI') as updated, zct.updated_by
+     , cty.iso_code, zct.postal_code_from, zct.postal_code_to, ate.articlenumber
+     , zct.start_date, zct.end_date, ate.articlenumber, cty.iso_code, crr.carriername
+  from rve_zipcode_carrier_costs zct
+     , wky_articles ate
+     , wky_countries cty
+     , wky_carriers crr
+ where ate.id = zct.ate_id
+   and cty.id = zct.cty_id
+   and crr.id = zct.crr_id
+ order by updated desc
+  ;
+  
+delete rve_zipcode_carrier_costs where merge_action = 'INSERT';
+
+truncate table rve_zipcode_carrier_costs;
+  
+select count(*), zct.merge_action
+  from rve_zipcode_carrier_costs zct
+ group by zct.merge_action
+ ;
+ 
+select count(*), length( lpad( zct.postal_code_from, 5, '0'))
+  from rve_zipcode_carrier_costs zct
+     , wky_countries cty
+ where cty.id = zct.cty_id
+   --and cty.iso_code = 'FR'
+ group by length( lpad( zct.postal_code_from, 5, '0'))
+ ;
+ 
+select count(*), cty.iso_code, crr.carriername
+  from rve_zipcode_carrier_costs zct
+     , wky_carriers crr
+     , wky_countries cty
+ where crr.id = zct.crr_id
+   and cty.id = zct.cty_id
+ group by cty.iso_code, crr.carriername
+ ;
+ 
+select * from wky_carriers; 
+
+select max( zct.price), cty.iso_code, crr.carriername
+  from rve_zipcode_carrier_costs zct
+     , wky_carriers crr
+     , wky_countries cty
+ where crr.id = zct.crr_id
+   and cty.id = zct.cty_id
+ group by cty.iso_code, crr.carriername
+ ;
+
+select count(*) from (
+select count(*), ate.articlenumber, cty.iso_code, zct.postal_code_from, zct.postal_code_to, zct.price, crr.carriername, zct.start_date, zct.end_date
+  from wky_zipcode_carrier_costs zct
+     , wky_countries cty
+     , wky_carriers crr
+     , wky_articles ate
+ where cty.id = zct.cty_id
+   and crr.id = zct.crr_id
+   and ate.id = zct.ate_id
+  -- and cty.iso_code = 'FR'
+  -- and crr.carriername = 'Gefco'
+ group by ate.articlenumber, cty.iso_code, zct.postal_code_from, zct.postal_code_to, zct.price, crr.carriername, zct.start_date, zct.end_date
+having count(*) > 1)
+   ;
+ 
+delete rve_zipcode_carrier_costs
+ where id in (
+              select zct.id
+                from rve_zipcode_carrier_costs zct
+                   , wky_countries cty
+                   , wky_carriers crr
+               where cty.id = zct.cty_id
+                 and crr.id = zct.crr_id
+                 and cty.iso_code = 'FR'
+                 and crr.carriername = 'Moeller'             
+             );
+ 
+ 
+/*
+
+
+INSERT	28-09-2018 07:45	28-09-2018 07:45	RVANDENE@APEXRND.BE	FR	01000	01999	01/01/16		625630	FR	Moeller
+INSERT	28-09-2018 07:45	28-09-2018 07:45	RVANDENE@APEXRND.BE	FR	01000	01999	01/01/16		614487	FR	Moeller
+INSERT	28-09-2018 07:45	28-09-2018 07:45	RVANDENE@APEXRND.BE	FR	01000	01999	01/01/16		810398	FR	Moeller
+INSERT	28-09-2018 07:45	28-09-2018 07:45	RVANDENE@APEXRND.BE	FR	01000	01999	01/01/16		810407	FR	Moeller
+
+*/
+
+select *
+  from wky_shipmentstatuses_lkp
+  ;
+  
+select *
+  from wky_languages_lkp
+  ;
+  
+  select *
+  from wky_trucks_vw;
+  
+select carriername || ' - ' || week_number || ' - ' || day_number || ' - ' || truck_nbr as d
+     , id as r
+  from wky_trucks_vw
+ order by 1
+  ;                      

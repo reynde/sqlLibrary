@@ -1,6 +1,6 @@
 select sysdate from dual;
 
-select * from wky_zipcode_carrier_costs where ate_id=134258073486752753727566402276393884288 and crr_id=143469652094644148674578672513496827321
+select * from wky_zipcode_carrier_costs where ate_id=134258073486752753727566402276393884288 and crr_id=143469652094644148674578672513496827321;
 
 select count(*) from wky_carriers;
 

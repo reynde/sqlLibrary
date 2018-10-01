@@ -69,6 +69,11 @@ create table wky_mail_templates (
     ste_id                         number
                                    constraint wky_mail_templates_ste_id_fk
                                    references wky_sales_channel_types not null,
+    default_to                     varchar2(255),
+    default_cc                     varchar2(255),
+    default_bcc                    varchar2(255),
+    default_from                   varchar2(255),
+    default_reply_to               varchar2(255),
     created                        date not null,
     created_by                     varchar2(255) not null,
     updated                        date not null,
@@ -346,6 +351,11 @@ mail_templates [MTP]
  mte_id /fk mail_template_types [Probably obsolete]
  brd_id /fk brands /nn
  ste_id /fk sales_channel_types /nn
+ default_to vc(255)
+ default_cc vc(255)
+ default_bcc vc(255)
+ default_from vc(255)
+ default_reply_to vc(255)
 
 scl_mail_template_types [SME]
  scl_id /fk wky_saleschannels

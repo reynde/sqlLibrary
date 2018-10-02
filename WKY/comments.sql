@@ -3,8 +3,8 @@ select ute.table_name
   from user_tables ute
      , user_tab_comments utt
  where ute.table_name = utt.table_name
-   and ute.table_name like 'WKY_%'
-   and nvl( substr( utt.comments, 1, 3), 'ZZZ') in ('MLS')
+   and ute.table_name like 'WKY_%BRAN%'
+  -- and nvl( substr( utt.comments, 1, 3), 'ZZZ') in ('CRY')
 --order by 1
 order by 2 desc
 ;

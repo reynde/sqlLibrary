@@ -133,6 +133,7 @@ create table wky_mail_loggings (
     date_sent                      date not null,
     subject                        varchar2(500),
     message_body                   clob,
+    message_body_html              clob,
     postmark_feedback              varchar2(200),
     remarks                        varchar2(4000),
     created                        date not null,
@@ -381,6 +382,7 @@ mail_loggings [MLS]
   date_sent /nn
   subject vc(500)
   message_body clob
+  message_body_html clob
   postmark_feedback vc(200)
   remarks vc(4000)
 
